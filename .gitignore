@@ -1,0 +1,44 @@
+# STM32 CubeMX / HAL
+.mxproject
+*.ioc.bak
+
+# Build output
+MDK-ARM/*/Listing/
+MDK-ARM/*/Output/
+MDK-ARM/*/*.uvguix.*
+MDK-ARM/*/*.scvd
+MDK-ARM/*/DebugConfig/
+MDK-ARM/*/*.axf
+MDK-ARM/*/*.hex
+MDK-ARM/*/*.bin
+MDK-ARM/*/*.htm
+MDK-ARM/*/*.dep
+MDK-ARM/*/*.iex
+MDK-ARM/*/*.lnp
+MDK-ARM/*/*.lst
+MDK-ARM/*/*.o
+MDK-ARM/*/*.d
+MDK-ARM/*/*.crf
+MDK-ARM/JLink*
+MDK-ARM/*.uvguix.*
+MDK-ARM/startup_stm32f407xx.lst
+MDK-ARM/beijixiong
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
