@@ -42,6 +42,8 @@
 
 
 #define GIMBAL_SMALL_YAW_ANGLE_PERIOD_MS (2)   // 角度环周期，单位 ms（1ms 的整数倍）
+#define GIMBAL_FOLD_CONNECTED    (0)        //0=没接折叠电机，1=已接
+
 /* ==================== 云台控制开关 ==================== */
 // 4310(大yaw/pitch/折叠) 用 LQR 力矩；6020(小yaw) 永远走双环 PID 电压
 
@@ -69,52 +71,6 @@
 
 #define LQR_GIMBAL_DT (0.001f)  /* 1kHz，与 gimbal_task.c 一致 */
 
-/* 自瞄模式PID参数宏定义（需要根据实际情况调整） */
-//小yaw 角度环（电机为6020时使用）
-#ifndef KP_AIM_YAW_ANGLE
-#define KP_AIM_YAW_ANGLE       17.0f
-#endif
-
-#ifndef KI_AIM_YAW_ANGLE
-#define KI_AIM_YAW_ANGLE       0.17f
-#endif
-
-#ifndef KD_AIM_YAW_ANGLE
-#define KD_AIM_YAW_ANGLE       0.0f
-#endif
-
-#ifndef MAX_OUT_AIM_YAW_ANGLE
-#define MAX_OUT_AIM_YAW_ANGLE  10.0f
-#endif
-
-#ifndef MAX_IOUT_AIM_YAW_ANGLE
-#define MAX_IOUT_AIM_YAW_ANGLE 10.0f
-#endif
-//yaw速度环（电机为6020时使用）
-#ifndef KP_AIM_YAW_VELOCITY
-#define KP_AIM_YAW_VELOCITY    1.5f
-#endif
-
-#ifndef KI_AIM_YAW_VELOCITY
-#define KI_AIM_YAW_VELOCITY    0.05f
-#endif
-
-#ifndef KD_AIM_YAW_VELOCITY
-#define KD_AIM_YAW_VELOCITY    0.0f
-#endif
-
-#ifndef MAX_OUT_AIM_YAW_VELOCITY
-#define MAX_OUT_AIM_YAW_VELOCITY 16000.0f
-#endif
-
-#ifndef MAX_IOUT_AIM_YAW_VELOCITY
-#define MAX_IOUT_AIM_YAW_VELOCITY 2000.0f
-#endif
-//yaw轴pid（电机为dm4310）
-		
-#define	KP_MIT_AIM		38.0f
-
-#define KD_MIT_AIM		1.8f
 
 /* 折叠轴前馈补偿参数 */
 #define FOLD_MASS              (0.5f)   /* 折叠负载质量 kg，实测填 */

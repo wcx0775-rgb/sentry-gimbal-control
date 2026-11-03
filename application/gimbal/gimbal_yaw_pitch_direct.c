@@ -458,6 +458,8 @@ void GimbalReference(void)
 	{
 		//fold 抬头
 		gimbal_direct.reference.fold = GIMBAL_DIRECT_FOLD_UP;
+		#if GIMBAL_FOLD_CONNECTED
+
 		//small_yaw: fold 到位后再回中，否则保持当前
 		if (fabsf(gimbal_direct.reference.fold - gimbal_direct.fold.fdb.pos) < 0.1f)
 		{
@@ -467,6 +469,9 @@ void GimbalReference(void)
 		{
 			gimbal_direct.reference.small_yaw = gimbal_direct.small_yaw.fdb.pos;
 		}
+		#else
+		gimbal_direct.reference.small_yaw = GIMBAL_DIRECT_SMALL_YAW_MID;
+		#endif
 
 		if (gimbal_direct.last_mode != GIMBAL_IMU)
 		{
