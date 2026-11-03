@@ -1,6 +1,6 @@
 /**
   * @file       robot_param_omni_infantry.h
-  * @brief      这里是全向轮步兵机器人参数配置文件，包括物理参数、PID参数等
+  * @brief      这里是折叠全向哨兵机器人参数配置文件，包括物理参数、PID参数等
   * @history
   *  Version    Date            Author          Modification
   *  V1.1.0     2024-11-3     Harry_Wong        1. 完成云台所有基本控制
@@ -79,17 +79,17 @@
 #define GIMBAL_DIRECT_SMALL_YAW_MODE (0)
 
 //physical parameters ---------------------
-#define GIMBAL_UPPER_LIMIT_PITCH (0.256f)//0.08f
-#define GIMBAL_LOWER_LIMIT_PITCH (-0.225f)//-0.45
-#define GIMBAL_UPPER_LIMIT_SMALL_YAW (0.80f)//0.08f
-#define GIMBAL_LOWER_LIMIT_SMALL_YAW (-2.43f)//-0.45
+#define GIMBAL_UPPER_LIMIT_PITCH (0.256f)//数据源IMU角度  
+#define GIMBAL_LOWER_LIMIT_PITCH (-0.225f)//数据源IMU角度
+#define GIMBAL_UPPER_LIMIT_SMALL_YAW (0.80f)//编码器角度
+#define GIMBAL_LOWER_LIMIT_SMALL_YAW (-2.43f)//编码器角度
 
 //电机角度中值设置
-#define GIMBAL_DIRECT_PITCH_MID (-2.697f)  //云台初始化正对齐的时候使用的pitch轴正中心量-2.5f
-#define GIMBAL_DIRECT_YAW_MID  (-1.693f)    //云台初始化正对齐的时候使用的yaw轴正中心量
-#define GIMBAL_DIRECT_SMALL_YAW_MID (-0.77f)  //小yaw中间初始角度
-#define GIMBAL_DIRECT_FOLD_UP   (1.141f)  //fold抬头展开角度
-#define GIMBAL_DIRECT_FOLD_DOWN (-1.025f)  //fold低头收起角度
+#define GIMBAL_DIRECT_PITCH_MID (-2.697f)  //云台初始化正对齐的时候使用的pitch轴正中心量（编码器角度）
+#define GIMBAL_DIRECT_YAW_MID  (-1.693f)    //云台初始化正对齐的时候使用的yaw轴正中心量（编码器角度，给云台跟随用的）
+#define GIMBAL_DIRECT_SMALL_YAW_MID (-0.77f)  //小yaw中间初始角度（编码器角度）
+#define GIMBAL_DIRECT_FOLD_UP   (1.141f)  //fold抬头展开角度（编码器角度）
+#define GIMBAL_DIRECT_FOLD_DOWN (-1.025f)  //fold低头收起角度（编码器角度）
 
 //PID parameters ---------------------
 //YAW ANGLE
