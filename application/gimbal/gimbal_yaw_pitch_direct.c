@@ -224,10 +224,14 @@ void Gimbal_direct_auto_aim_control(void)
     }
 	else
     {
-        // 视觉没发角度：保持当前角度，不乱动
-        gimbal_direct.reference.pitch = gimbal_direct.feedback_pos.pitch;
-        gimbal_direct.reference.yaw = gimbal_direct.feedback_pos.yaw;
-        gimbal_direct.reference.small_yaw = gimbal_direct.small_yaw.fdb.pos;
+		if(gimbal_direct.last_mode != GIMBAL_AUTO_AIM)
+		{
+			// 视觉没发角度：保持当前角度，不乱动
+        	gimbal_direct.reference.pitch = gimbal_direct.feedback_pos.pitch;
+        	gimbal_direct.reference.yaw = gimbal_direct.feedback_pos.yaw;
+        	gimbal_direct.reference.small_yaw = gimbal_direct.small_yaw.fdb.pos;
+		}
+        
     }
 }
 
@@ -506,17 +510,23 @@ void GimbalReference(void)
 				break;
 
 			case IMU_RECENTERING:
-				//电机已使能、反馈有效，抓当前 yaw 再放行
-    			gimbal_direct.reference.yaw = gimbal_direct.feedback_pos.yaw;
-    			gimbal_imu_state = IMU_READY;
+				// 等 pitch 电机在线（fdb.pos 有效）再归中，否则第一次上电 fdb.pos=0 会算错
+				if(!gimbal_direct.pitch.offline)
+				{
+					gimbal_direct.reference.pitch = loop_fp32_constrain(gimbal_direct.pitch.direction * (GIMBAL_DIRECT_PITCH_MID - gimbal_direct.pitch.fdb.pos) + gimbal_direct.feedback_pos.pitch, -M_PI, M_PI);
+					//电机已使能、反馈有效，抓当前 yaw 再放行
+    				gimbal_direct.reference.yaw = gimbal_direct.feedback_pos.yaw;
+    				gimbal_imu_state = IMU_READY;
+				}
+
 				break;
 
 			case IMU_READY:
 				//大yaw、pitch可遥控
-				gimbal_direct.reference.pitch = fp32_constrain(gimbal_direct.reference.pitch - gimbal_direct.rc->mouse.y / MOUSE_SENSITIVITY_PITCH, GIMBAL_LOWER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu, GIMBAL_UPPER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu);
+				gimbal_direct.reference.pitch = fp32_constrain(gimbal_direct.reference.pitch - gimbal_direct.rc->mouse.y / MOUSE_SENSITIVITY_PITCH, GIMBAL_UPPER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu, GIMBAL_LOWER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu);
 				gimbal_direct.reference.yaw = loop_fp32_constrain(gimbal_direct.reference.yaw - gimbal_direct.rc->mouse.x / MOUSE_SENSITIVITY_YAW, -M_PI, M_PI);
-				gimbal_direct.reference.pitch = fp32_constrain(gimbal_direct.reference.pitch - fp32_deadline(gimbal_direct.rc->rc.ch[1], REMOTE_CONTROLLER_MIN_DEADLINE, REMOTE_CONTROLLER_MAX_DEADLINE) / 10000, GIMBAL_LOWER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu, GIMBAL_UPPER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu);
-				gimbal_direct.reference.yaw = loop_fp32_constrain(gimbal_direct.reference.yaw - fp32_deadline(gimbal_direct.rc->rc.ch[0], REMOTE_CONTROLLER_MIN_DEADLINE, REMOTE_CONTROLLER_MAX_DEADLINE) / 10000, -M_PI, M_PI);
+				gimbal_direct.reference.pitch = fp32_constrain(gimbal_direct.reference.pitch - fp32_deadline(gimbal_direct.rc->rc.ch[1], REMOTE_CONTROLLER_MIN_DEADLINE, REMOTE_CONTROLLER_MAX_DEADLINE) / 40000, GIMBAL_UPPER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu, GIMBAL_LOWER_LIMIT_PITCH + gimbal_direct.angle_zero_for_imu);
+				gimbal_direct.reference.yaw = loop_fp32_constrain(gimbal_direct.reference.yaw - fp32_deadline(gimbal_direct.rc->rc.ch[0], REMOTE_CONTROLLER_MIN_DEADLINE, REMOTE_CONTROLLER_MAX_DEADLINE) / 80000, -M_PI, M_PI);
 				break;
 			}
       	}
@@ -627,7 +637,7 @@ void GimbalConsole(void)
 	}
 	//VOFA调试
 	//  JustFloat(gimbal_direct.yaw.set.tor,gimbal_direct.yaw.fdb.tor,gimbal_direct.yaw.fdb.pos,gimbal_direct.yaw.fdb.vel);
-	 JustFloat(gimbal_direct.small_yaw.set.pos,gimbal_direct.small_yaw.fdb.pos,gimbal_direct.small_yaw.fdb.curr,gimbal_direct.small_yaw.fdb.vel);
+	//  JustFloat(gimbal_direct.small_yaw.set.pos,gimbal_direct.small_yaw.fdb.pos,gimbal_direct.small_yaw.fdb.curr,gimbal_direct.small_yaw.fdb.vel);
 }
 
 /*-------------------- Cmd --------------------*/

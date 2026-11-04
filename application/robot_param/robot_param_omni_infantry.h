@@ -43,8 +43,8 @@
 #define REMOTE_CONTROLLER_MIN_DEADLINE (-20.0f)
 //motor parameters ---------------------
 //电机id
-#define GIMBAL_DIRECT_YAW_ID ((uint8_t)3)   //大yaw
-#define GIMBAL_DIRECT_PITCH_ID ((uint8_t)4) //pitch
+#define GIMBAL_DIRECT_YAW_ID ((uint8_t)4)   //大yaw
+#define GIMBAL_DIRECT_PITCH_ID ((uint8_t)3) //pitch
 #define GIMBAL_DIRECT_FOLD_ID ((uint8_t)1)  //折叠
 #define GIMBAL_DIRECT_SMALL_YAW_ID ((uint8_t)2) //小yaw
 
@@ -62,7 +62,7 @@
 
 //旋转方向
 #define GIMBAL_DIRECT_YAW_DIRECTION (1)
-#define GIMBAL_DIRECT_PITCH_DIRECTION (-1)
+#define GIMBAL_DIRECT_PITCH_DIRECTION (1)
 #define GIMBAL_DIRECT_FOLD_DIRECTION (1)
 #define GIMBAL_DIRECT_SMALL_YAW_DIRECTION (1)
 
@@ -79,15 +79,15 @@
 #define GIMBAL_DIRECT_SMALL_YAW_MODE (0)
 
 //physical parameters ---------------------
-#define GIMBAL_UPPER_LIMIT_PITCH (0.256f)//数据源IMU角度  
-#define GIMBAL_LOWER_LIMIT_PITCH (-0.225f)//数据源IMU角度
-#define GIMBAL_UPPER_LIMIT_SMALL_YAW (0.80f)//编码器角度
-#define GIMBAL_LOWER_LIMIT_SMALL_YAW (-2.43f)//编码器角度
+#define GIMBAL_UPPER_LIMIT_PITCH (-0.611f)//数据源IMU角度  
+#define GIMBAL_LOWER_LIMIT_PITCH (0.53f)//数据源IMU角度
+#define GIMBAL_UPPER_LIMIT_SMALL_YAW (-1.21f)//编码器角度
+#define GIMBAL_LOWER_LIMIT_SMALL_YAW (0.15f)//编码器角度
 
 //电机角度中值设置
-#define GIMBAL_DIRECT_PITCH_MID (-2.697f)  //云台初始化正对齐的时候使用的pitch轴正中心量（编码器角度）
+#define GIMBAL_DIRECT_PITCH_MID (1.028f)  //云台初始化正对齐的时候使用的pitch轴正中心量（编码器角度）
 #define GIMBAL_DIRECT_YAW_MID  (-1.693f)    //云台初始化正对齐的时候使用的yaw轴正中心量（编码器角度，给云台跟随用的）
-#define GIMBAL_DIRECT_SMALL_YAW_MID (-0.77f)  //小yaw中间初始角度（编码器角度）
+#define GIMBAL_DIRECT_SMALL_YAW_MID (-0.4f)  //小yaw中间初始角度（编码器角度）
 #define GIMBAL_DIRECT_FOLD_UP   (1.141f)  //fold抬头展开角度（编码器角度）
 #define GIMBAL_DIRECT_FOLD_DOWN (-1.025f)  //fold低头收起角度（编码器角度）
 

@@ -49,13 +49,13 @@
 // 4310(大yaw/pitch/折叠) 用 LQR 力矩；6020(小yaw) 永远走双环 PID 电压
 
 /* LQR 增益：MATLAB dlqr 输出后填入（占位值！） */
-#define K1_LQR_YAW    (-2.839323f)  /* TODO */
-#define K2_LQR_YAW    (0.113066f)   /* TODO */
-#define KI_LQR_YAW    (-0.028382f)   /* TODO */
+#define K1_LQR_YAW    (-20.819606f)  /* TODO */
+#define K2_LQR_YAW    (1.129067f)   /* TODO */
+#define KI_LQR_YAW    (-0.208112f)   /* TODO */
 
-#define K1_LQR_PITCH  (-1.546450f)  /* TODO */
-#define K2_LQR_PITCH  (0.095673f)   /* TODO */
-#define KI_LQR_PITCH  (-0.10463f)   /* TODO */
+#define K1_LQR_PITCH  (-6.988619f)  /* TODO */
+#define K2_LQR_PITCH  (0.278297f)   /* TODO */
+#define KI_LQR_PITCH  (-0.069858f)   /* TODO */
 
 #define K1_LQR_FOLD   (-1.546450f)  /* TODO */
 #define K2_LQR_FOLD   (0.095673f)   /* TODO */
