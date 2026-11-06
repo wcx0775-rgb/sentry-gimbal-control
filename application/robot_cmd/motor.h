@@ -210,6 +210,20 @@ typedef struct
     uint32_t last_fdb_time;  //上次反馈时间
 } LkMeasure_s;
 
+/*-------------------- GaoQing Motor --------------------*/
+#define GAOQING_NUM 4
+
+typedef struct
+{
+    float pos;
+    float vel;
+    float tor;
+    uint8_t mode;
+    uint8_t fault;
+    uint32_t last_fdb_time;  //上次反馈时间
+} GaoQingMeasure_s;
+
+
 /*-------------------- Motor struct --------------------*/
 
 /**

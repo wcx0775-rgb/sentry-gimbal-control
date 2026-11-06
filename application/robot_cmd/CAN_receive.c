@@ -48,6 +48,9 @@ static CybergearMeasure_s CAN2_CYBERGEAR_MEASURE[CYBERGEAR_NUM + 1];
 static DmMeasure_s CAN1_DM_MEASURE[DM_NUM];
 static DmMeasure_s CAN2_DM_MEASURE[DM_NUM];
 
+static GaoQingMeasure_s CAN1_GAOQING_MEASURE[GAOQING_NUM];
+static GaoQingMeasure_s CAN2_GAOQING_MEASURE[GAOQING_NUM];
+
 static LkMeasure_s CAN1_LK_MEASURE[LK_NUM];
 static LkMeasure_s CAN2_LK_MEASURE[LK_NUM];
 
@@ -92,6 +95,36 @@ void DmFdbData(DmMeasure_s * dm_measure, uint8_t * rx_data)
     dm_measure->t_rotor = (float)(rx_data[7]);
 
     dm_measure->last_fdb_time = HAL_GetTick();
+}
+
+/**
+ * @brief        GaoQingFdbData: 获取高擎电机反馈数据函数
+ * @param[out]   gq_measure 高擎电机数据缓存
+ * @param[in]    rx_data 指向包含反馈数据的数组指针
+ * @note         从接收到的数据中提取高擎电机的反馈信息
+ */
+void GaoQingFdbData(GaoQingMeasure_s * gq_measure, uint8_t * rx_data)
+{
+    int16_t pos_int = (int16_t)(rx_data[2] | (rx_data[3] << 8));
+    int16_t vel_int = (int16_t)(rx_data[4] | (rx_data[5] << 8));
+    int16_t tor_int = (int16_t)(rx_data[6] | (rx_data[7] << 8));
+
+    gq_measure->pos = pos_int * 0.00062831853f;
+    gq_measure->vel = vel_int * 0.0015707963f;
+    gq_measure->tor = tor_int * 0.0035f;
+
+    if(rx_data[0] == 0x27 && rx_data[1] == 0x01)
+    {
+        gq_measure->mode = 0;
+        gq_measure->fault = 0;
+    }
+    else
+    {
+        gq_measure->mode = rx_data[0];
+        gq_measure->fault = rx_data[1];
+    }
+
+    gq_measure->last_fdb_time = HAL_GetTick();
 }
 
 /**
@@ -207,6 +240,22 @@ static void DecodeStdIdData(hcan_t * CAN, CAN_RxHeaderTypeDef * rx_header, uint8
             }
             return;
         }
+        case GAOQING_M1_ID:
+        case GAOQING_M2_ID:
+        case GAOQING_M3_ID:
+        case GAOQING_M4_ID: {  // 以上ID为高擎电机标识符
+            static uint8_t i = 0;
+            i = (rx_header->StdId >> 8) - 1;  // 高擎电机ID从0x100开始，减去1得到索引
+            if (CAN == &hcan1)  // 接收到的数据是通过 CAN1 接收的
+            {
+                GaoQingFdbData(&CAN1_GAOQING_MEASURE[i], rx_data);
+            } else if (CAN == &hcan2)  // 接收到的数据是通过 CAN2 接收的
+            {
+                GaoQingFdbData(&CAN2_GAOQING_MEASURE[i], rx_data);
+            }
+            return;
+        }
+
         default: {
             break;
         }
@@ -495,6 +544,27 @@ static void GetLkFdbData(Motor_s * motor, const LkMeasure_s * lk_measure)
 }
 
 /**
+ * @brief          获取高擎电机反馈数据
+ * @param[out]     motor 电机结构体
+ * @param[in]      gq_measure 电机反馈数据缓存区
+ * @return         none
+ */
+static void GetGaoQingFdbData(Motor_s * motor, const GaoQingMeasure_s * gq_measure)
+{
+    motor->fdb.pos = gq_measure->pos;
+    motor->fdb.vel = gq_measure->vel;
+    motor->fdb.tor = gq_measure->tor;
+    motor->fdb.state = gq_measure->fault;
+
+    uint32_t now = HAL_GetTick();
+    if (now - gq_measure->last_fdb_time > MOTOR_STABLE_RUNNING_TIME) {
+        motor->offline = true;
+    } else {
+        motor->offline = false;
+    }
+}
+
+/**
  * @brief          获取接收数据
  * @param[out]     p_motor 电机结构体
  * @return         none
@@ -534,6 +604,13 @@ void GetMotorMeasure(Motor_s * p_motor)
                 GetLkFdbData(p_motor, &CAN1_LK_MEASURE[p_motor->id - 1]);
             } else {
                 GetLkFdbData(p_motor, &CAN2_LK_MEASURE[p_motor->id - 1]);
+            }
+        } break;
+        case GAOQING_MOTOR: {
+            if (p_motor->can == 1) {
+                GetGaoQingFdbData(p_motor, &CAN1_GAOQING_MEASURE[p_motor->id - 1]);
+            } else {
+                GetGaoQingFdbData(p_motor, &CAN2_GAOQING_MEASURE[p_motor->id - 1]);
             }
         } break;
         default:

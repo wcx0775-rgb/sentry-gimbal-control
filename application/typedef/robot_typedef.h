@@ -106,6 +106,7 @@ typedef enum __MotorType {
     DM_4310,
     DM_4340,
     MF_9025,
+    GAOQING_MOTOR,
 } MotorType_e;
 // clang-format on
 

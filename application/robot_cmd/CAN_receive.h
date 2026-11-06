@@ -67,6 +67,13 @@ typedef enum __LkMotorType{
     LK_M3_ID,
     LK_M4_ID,
 } LkMotorType_e;
+
+typedef enum __GaoQingMotorType{
+    GAOQING_M1_ID = 0x100,
+    GAOQING_M2_ID = 0x200,
+    GAOQING_M3_ID = 0x300,
+    GAOQING_M4_ID = 0x400,
+} GaoQingMotorType_e;
 // clang-format on
 
 extern const DjiMotorMeasure_t * GetDjiMotorMeasurePoint(uint8_t can, uint8_t i);

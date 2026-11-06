@@ -197,19 +197,19 @@ void Gimbal_direct_auto_aim_control(void)
     {
         // --- Pitch：相对角 → 当前IMU角 + 相对角 = 绝对目标 ---
         gimbal_direct.reference.pitch = fp32_constrain(
-            gimbal_direct.feedback_pos.pitch + gimbal_direct.vision_reference.pitch,
-            gimbal_direct.lower_limit.pitch + gimbal_direct.angle_zero_for_imu,
-            gimbal_direct.upper_limit.pitch + gimbal_direct.angle_zero_for_imu);
+            gimbal_direct.vision_reference.pitch,
+            gimbal_direct.upper_limit.pitch + gimbal_direct.angle_zero_for_imu,
+            gimbal_direct.lower_limit.pitch + gimbal_direct.angle_zero_for_imu);
 
         // --- Yaw：在大yaw / 小yaw 之间分配 ---
-        float yaw_err = gimbal_direct.vision_reference.yaw;   // 世界系相对角
+        float yaw_err = loop_fp32_constrain(gimbal_direct.vision_reference.yaw - gimbal_direct.feedback_pos.yaw, -M_PI, M_PI);   // 世界系相对角
 
         // 若小yaw 吃掉整个误差，编码器会到哪
         float small_desired = gimbal_direct.small_yaw.fdb.pos
                             + gimbal_direct.small_yaw.direction * yaw_err;
 
-        if (small_desired > gimbal_direct.lower_limit.small_yaw &&
-            small_desired < gimbal_direct.upper_limit.small_yaw)
+        if (small_desired > gimbal_direct.upper_limit.small_yaw &&
+            small_desired < gimbal_direct.lower_limit.small_yaw)
         {
             // 小yaw 范围内：小yaw 转，大yaw 保持
             gimbal_direct.reference.small_yaw = loop_fp32_constrain(gimbal_direct.small_yaw.fdb.pos + gimbal_direct.small_yaw.direction * yaw_err, -M_PI, M_PI);
@@ -218,7 +218,7 @@ void Gimbal_direct_auto_aim_control(void)
         else
         {
             // 超出小yaw 范围：大yaw 转，小yaw 保持当前
-            gimbal_direct.reference.yaw = loop_fp32_constrain(gimbal_direct.feedback_pos.yaw + yaw_err, -M_PI, M_PI);
+            gimbal_direct.reference.yaw = loop_fp32_constrain(gimbal_direct.vision_reference.yaw, -M_PI, M_PI);
             gimbal_direct.reference.small_yaw = gimbal_direct.small_yaw.fdb.pos;
         }
     }

@@ -2177,6 +2177,16 @@
               <FileType>5</FileType>
               <FilePath>..\application\robot_cmd\CAN_communication.h</FilePath>
             </File>
+            <File>
+              <FileName>CAN_cmd_gaoqing.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\application\robot_cmd\CAN_cmd_gaoqing.c</FilePath>
+            </File>
+            <File>
+              <FileName>CAN_cmd_gaoqing.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\application\robot_cmd\CAN_cmd_gaoqing.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
