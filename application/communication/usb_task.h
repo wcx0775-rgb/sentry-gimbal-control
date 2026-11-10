@@ -102,13 +102,15 @@ typedef struct {
 typedef struct {
     uint8_t  header;        // 帧头：0x5A
     uint8_t  cmd_id;        // 命令码：0x01
+    uint64_t sample_time_us; // 采样时间戳 (us)
     float    gimbal_yaw;    // 云台 Yaw 轴当前角度 (rad)
     float    gimbal_pitch;  // 云台 Pitch 轴当前角度 (rad)
 	float 	 gimbal_relative_yaw;//云台相对底盘的夹角 (rad)
+    float    chassis_yaw; // 底盘 Yaw 轴当前角度 (rad)
     float    chassis_vx;    // 底盘 X 轴线速度 (m/s)
     float    chassis_vy;    // 底盘 Y 轴线速度 (m/s)
     float    chassis_vw;    // 底盘 Z 轴角速度 (rad/s)
-	float 	 current_hp;	//当前血量
+	uint16_t current_hp;	//当前血量
     uint16_t crc16;         // 校验码
     uint8_t  tail;          // 帧尾：0x0D
 } RobotStatePacket;
@@ -125,6 +127,10 @@ typedef struct {
     uint16_t crc16;         // 校验码
     uint8_t  tail;          // 帧尾：0x0D
 } RobotCmdPacket;
+
+typedef struct{
+    
+}
 
 
 #pragma pack(pop)  /* 恢复字节对齐 */
