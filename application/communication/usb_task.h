@@ -128,9 +128,6 @@ typedef struct {
     uint8_t  tail;          // Ö¡Î²£º0x0D
 } RobotCmdPacket;
 
-typedef struct{
-    
-}
 
 
 #pragma pack(pop)  /* »Ö¸´×Ö½Ú¶ÔÆë */
