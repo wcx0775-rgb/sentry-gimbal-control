@@ -189,6 +189,10 @@
 #define FRIC_PID_MAX_OUT (16000.0f)
 #define FRIC_PID_MAX_IOUT (1000.0f)
 
+//摩擦轮前馈（K 填 0 即关闭，标定后再填数）
+#define FRIC_ACC_FF_K (0.0f)        //加速度前馈,单位（电流）/（rad/s^2）
+#define FRIC_DIFF_FF_K (0.0f)       //速度差前馈,单位（电流）/（rad/s）
+
 //枪口热量阈值
 #define SHOOT_HEAT_REMAIN_VALUE     60
 

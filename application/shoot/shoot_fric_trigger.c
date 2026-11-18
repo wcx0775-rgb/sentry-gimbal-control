@@ -41,6 +41,10 @@
 uint8_t fric_ui;
 fp32 delta;
 
+// 摩擦轮前馈：上一周期转速(rad/s)，用于差分算加速度
+static fp32 last_fric_vel_R = 0.0f;
+static fp32 last_fric_vel_L = 0.0f;
+
 /*-------------------- Init --------------------*/
 
 /**
@@ -59,10 +63,19 @@ void ShootInit(void)
   MotorInit(&SHOOT.fric_motor[1],FRIC_MOTOR_L_ID, FRIC_MOTOR_L_CAN, FRIC_MOTOR_TYPE, 1, 1.0f, 0);//初始化L摩擦轮电机结构体
 
   const fp32 pid_fric[3] = {FRIC_SPEED_PID_KP, FIRC_SPEED_PID_KI, FRIC_SPEED_PID_KD};//摩擦轮速度环
+  PID_init_ex(&SHOOT.fric_pid[0], PID_POSITION, pid_fric,
+              FRIC_PID_MAX_OUT, FRIC_PID_MAX_IOUT,
+              DERIVATIVE_ON_MEASUREMENT,          // I-PD：D 作用在测量值
+              INTEGRAL_TRAPEZOIDAL,               // 梯形积分
+              PID_FEATURE_INTEGRAL_SEPARATION);   // 积分分离
+  PID_set_integral_separation(&SHOOT.fric_pid[0], 100.0f);   // 误差>100 rad/s 时停积分
 
-  PID_init(&SHOOT.fric_pid[0], PID_POSITION, pid_fric, FRIC_PID_MAX_OUT, FRIC_PID_MAX_IOUT);
-  PID_init(&SHOOT.fric_pid[1], PID_POSITION, pid_fric, FRIC_PID_MAX_OUT, FRIC_PID_MAX_IOUT);//摩擦轮初始化pid
-
+  PID_init_ex(&SHOOT.fric_pid[1], PID_POSITION, pid_fric,
+              FRIC_PID_MAX_OUT, FRIC_PID_MAX_IOUT,
+              DERIVATIVE_ON_MEASUREMENT,
+              INTEGRAL_TRAPEZOIDAL,
+              PID_FEATURE_INTEGRAL_SEPARATION);
+  PID_set_integral_separation(&SHOOT.fric_pid[1], 100.0f);
   //拨弹盘相关
   MotorInit(&SHOOT.trigger_motor,TRIGGER_MOTOR_ID, TRIGGER_MOTOR_CAN, TRIGGER_MOTOR_TYPE, 1, 1.0f, 0);//初始化拨弹盘电机结构体
 
@@ -70,7 +83,12 @@ void ShootInit(void)
   const fp32 pid_speed_trigger[3] = {TRIGGER_SPEED_PID_KP, TRIGGER_SPEED_PID_KI, TRIGGER_SPEED_PID_KD};//拨弹盘速度环
 
   PID_init(&SHOOT.trigger_angel_pid, PID_POSITION, pid_angel_trigger, TRIGGER_ANGEL_PID_MAX_OUT, TRIGGER_ANGEL_PID_MAX_IOUT);
-  PID_init(&SHOOT.trigger_speed_pid, PID_POSITION, pid_speed_trigger, TRIGGER_SPEED_PID_MAX_OUT, TRIGGER_SPEED_PID_MAX_IOUT);  //拨弹盘初始化pid
+  PID_init_ex(&SHOOT.trigger_speed_pid, PID_POSITION, pid_speed_trigger,
+              TRIGGER_SPEED_PID_MAX_OUT, TRIGGER_SPEED_PID_MAX_IOUT,
+              DERIVATIVE_ON_MEASUREMENT,
+              INTEGRAL_TRAPEZOIDAL,
+              PID_FEATURE_INTEGRAL_SEPARATION);
+  PID_set_integral_separation(&SHOOT.trigger_speed_pid, 50.0f);   // 误差>50 rad/s 时停积分
 
 	
 }
@@ -285,8 +303,27 @@ void ShootReference(void)
  */
 void ShootConsole(void)
 {
-	SHOOT.fric_motor[0].set.curr= PID_calc(&SHOOT.fric_pid[0], SHOOT.FDB.fric_speed_fdb_R,SHOOT.REF.fric_speed_ref_R);
-	SHOOT.fric_motor[1].set.curr= PID_calc(&SHOOT.fric_pid[1], SHOOT.FDB.fric_speed_fdb_L,SHOOT.REF.fric_speed_ref_L);
+    fp32 vel_R = SHOOT.FDB.fric_speed_fdb_R;
+    fp32 vel_L = SHOOT.FDB.fric_speed_fdb_L;
+
+    fp32 u_R = PID_calc(&SHOOT.fric_pid[0], SHOOT.FDB.fric_speed_fdb_R,SHOOT.REF.fric_speed_ref_R);
+    fp32 u_L = PID_calc(&SHOOT.fric_pid[1], SHOOT.FDB.fric_speed_fdb_L,SHOOT.REF.fric_speed_ref_L);
+	
+    fp32 acc_R = (vel_R - last_fric_vel_R) * 1000.0f; // 计算摩擦轮右电机加速度(rad/s^2)
+    fp32 acc_L = (vel_L - last_fric_vel_L) * 1000.0f; // 计算摩擦轮左电机加速度(rad/s^2)
+
+    u_R -= FRIC_ACC_FF_K * acc_R; // 加速度前馈补偿
+    u_L -= FRIC_ACC_FF_K * acc_L; // 加速度前馈补偿
+
+    fp32 spin_err = vel_R + vel_L; // 计算摩擦轮速度差
+    u_R -= FRIC_DIFF_FF_K * spin_err; // 速度差前馈补偿
+    u_L -= FRIC_DIFF_FF_K * spin_err; // 速度差前馈补偿
+
+    last_fric_vel_R = vel_R; // 更新上一周期摩擦轮右电机速度
+    last_fric_vel_L = vel_L; // 更新上一周期摩擦轮左电机速度
+
+    SHOOT.fric_motor[0].set.curr = u_R;
+    SHOOT.fric_motor[1].set.curr = u_L;
 
 	if (SHOOT.mode == LOAD_STOP)
     {
@@ -299,6 +336,8 @@ void ShootConsole(void)
 	//VOFA调试
 //	JustFloat(SHOOT.REF.fric_speed_ref_R,SHOOT.FDB.fric_speed_fdb_R,0,0);         
 //	JustFloat(SHOOT.REF.trigger_speed_ref,SHOOT.FDB.trigger_speed_fdb,0,0);	
+    // JustFloat(vel_R, vel_L, spin_err, 0);
+    // JustFloat(vel_R, acc_R, 0, 0);
 }
 
 /*-------------------- Cmd --------------------*/
