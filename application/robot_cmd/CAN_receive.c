@@ -109,20 +109,16 @@ void GaoQingFdbData(GaoQingMeasure_s * gq_measure, uint8_t * rx_data)
     int16_t vel_int = (int16_t)(rx_data[4] | (rx_data[5] << 8));
     int16_t tor_int = (int16_t)(rx_data[6] | (rx_data[7] << 8));
 
-    gq_measure->pos = pos_int * 0.00062831853f;
-    gq_measure->vel = vel_int * 0.0015707963f;
-    gq_measure->tor = tor_int * 0.0035f;
+    // 解回绕：int16 差值自动处理 ±3.2768 圈回绕
+    gq_measure->multi_turn_lsb += (int16_t)(pos_int - gq_measure->last_pos_int);
+    gq_measure->last_pos_int = pos_int;
 
-    if(rx_data[0] == 0x27 && rx_data[1] == 0x01)
-    {
-        gq_measure->mode = 0;
-        gq_measure->fault = 0;
-    }
-    else
-    {
-        gq_measure->mode = rx_data[0];
-        gq_measure->fault = rx_data[1];
-    }
+    gq_measure->pos = loop_fp32_constrain(gq_measure->multi_turn_lsb * 0.00062831853f, -M_PI, M_PI);
+    gq_measure->vel = vel_int * 0.0015707963f;
+    gq_measure->tor = tor_int * 0.01f;    // 0.01 N·m/LSB，无 k 系数
+
+    gq_measure->mode = 0;               // 返回帧不含模式字段
+    gq_measure->fault = rx_data[1];     // 错误码
 
     gq_measure->last_fdb_time = HAL_GetTick();
 }
@@ -237,21 +233,6 @@ static void DecodeStdIdData(hcan_t * CAN, CAN_RxHeaderTypeDef * rx_header, uint8
             } else if (CAN == &hcan2)  // 接收到的数据是通过 CAN2 接收的
             {
                 LkFdbData(&CAN2_LK_MEASURE[i], rx_data);
-            }
-            return;
-        }
-        case GAOQING_M1_ID:
-        case GAOQING_M2_ID:
-        case GAOQING_M3_ID:
-        case GAOQING_M4_ID: {  // 以上ID为高擎电机标识符
-            static uint8_t i = 0;
-            i = (rx_header->StdId >> 8) - 1;  // 高擎电机ID从0x100开始，减去1得到索引
-            if (CAN == &hcan1)  // 接收到的数据是通过 CAN1 接收的
-            {
-                GaoQingFdbData(&CAN1_GAOQING_MEASURE[i], rx_data);
-            } else if (CAN == &hcan2)  // 接收到的数据是通过 CAN2 接收的
-            {
-                GaoQingFdbData(&CAN2_GAOQING_MEASURE[i], rx_data);
             }
             return;
         }
@@ -391,6 +372,21 @@ static void CybergearRxDecode(Motor_s * p_motor, uint8_t rx_data[8])
  */
 static void DecodeExtIdData(hcan_t * CAN, CAN_RxHeaderTypeDef * rx_header, uint8_t rx_data[8])
 {
+     // 高擎返回帧：ExtId = 0x10000 | (ID<<8)，即 bit16=1、bit15=0
+    if ((rx_header->ExtId & 0x18000) == 0x10000)
+    {
+        uint8_t i = ((rx_header->ExtId >> 8) & 0x7F) - 1;  // 电机ID(1~126) -> 索引0起
+        if (i < GAOQING_NUM)
+        {
+            if (CAN == &hcan1) {
+                GaoQingFdbData(&CAN1_GAOQING_MEASURE[i], rx_data);
+            } else if (CAN == &hcan2) {
+                GaoQingFdbData(&CAN2_GAOQING_MEASURE[i], rx_data);
+            }
+        }
+        return;
+    }
+
     uint8_t motor_id = 0;
     if (((RxCanInfo_s *)(&rx_header->ExtId))->communication_type == 2) {  //通信类型2
         motor_id = ((RxCanInfoType_2_s *)(&rx_header->ExtId))->motor_id;

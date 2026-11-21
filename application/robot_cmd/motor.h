@@ -221,6 +221,8 @@ typedef struct
     uint8_t mode;
     uint8_t fault;
     uint32_t last_fdb_time;  //上次反馈时间
+    int32_t multi_turn_lsb;
+    int16_t last_pos_int;
 } GaoQingMeasure_s;
 
 

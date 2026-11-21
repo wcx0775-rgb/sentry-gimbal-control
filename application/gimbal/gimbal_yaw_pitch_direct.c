@@ -347,6 +347,8 @@ void GimbalInit(void)
 	MotorInit(&gimbal_direct.fold,      GIMBAL_DIRECT_FOLD_ID,      GIMBAL_DIRECT_FOLD_CAN,      GIMBAL_DIRECT_FOLD_MOTOR_TYPE,      GIMBAL_DIRECT_FOLD_DIRECTION,      GIMBAL_DIRECT_FOLD_REDUCTION_RATIO,      GIMBAL_DIRECT_FOLD_MODE);
     MotorInit(&gimbal_direct.small_yaw, GIMBAL_DIRECT_SMALL_YAW_ID, GIMBAL_DIRECT_SMALL_YAW_CAN, GIMBAL_DIRECT_SMALL_YAW_MOTOR_TYPE, GIMBAL_DIRECT_SMALL_YAW_DIRECTION, GIMBAL_DIRECT_SMALL_YAW_REDUCTION_RATIO, GIMBAL_DIRECT_SMALL_YAW_MODE);
 
+	GaoQingSetTimedReturnStatus(&gimbal_direct.yaw,1000);
+
 	//step5 初始化云台初始化校准相关变量
     gimbal_direct.init_start_time=0;
     gimbal_direct.init_timer=0;
@@ -385,8 +387,8 @@ void GimbalSetMode(void)
     }
     else if (switch_is_mid(gimbal_direct.rc->rc.s[0])) 
     {
-        // gimbal_direct.mode = GIMBAL_MOTOR_TEST;
-		gimbal_direct.mode = GIMBAL_IMU;
+        gimbal_direct.mode = GIMBAL_MOTOR_TEST;
+		// gimbal_direct.mode = GIMBAL_IMU;
     }
     else if (switch_is_up(gimbal_direct.rc->rc.s[0])) 
     {
@@ -542,17 +544,22 @@ void GimbalReference(void)
 	{
 		        // 调试模式：位置式，摇杆 ch[0] 推多少转多少，回中=0（中间）
         // 1.0f 是摇杆推满对应的目标角度(rad)，想转更多就改这个数
-        gimbal_direct.reference.small_yaw = loop_fp32_constrain(
-            fp32_deadline(gimbal_direct.rc->rc.ch[0],
-                          REMOTE_CONTROLLER_MIN_DEADLINE,
-                          REMOTE_CONTROLLER_MAX_DEADLINE) / 660.0f * 1.0f,
-            -M_PI, M_PI);
-			// fold：摇杆 ch[1] 控角度（LQR 跟踪）
-			gimbal_direct.reference.fold = fp32_constrain(
-    		fp32_deadline(gimbal_direct.rc->rc.ch[1],
-                  		REMOTE_CONTROLLER_MIN_DEADLINE,
-                  		REMOTE_CONTROLLER_MAX_DEADLINE) / 660.0f * GIMBAL_DIRECT_FOLD_UP,
-    		GIMBAL_DIRECT_FOLD_DOWN, GIMBAL_DIRECT_FOLD_UP);
+        // gimbal_direct.reference.small_yaw = loop_fp32_constrain(
+        //     fp32_deadline(gimbal_direct.rc->rc.ch[0],REMOTE_CONTROLLER_MIN_DEADLINE,REMOTE_CONTROLLER_MAX_DEADLINE) / 660.0f * 1.0f, -M_PI, M_PI);
+		// 	// fold：摇杆 ch[1] 控角度（LQR 跟踪）
+		// 	gimbal_direct.reference.fold = fp32_constrain(
+    	// 	fp32_deadline(gimbal_direct.rc->rc.ch[1],REMOTE_CONTROLLER_MIN_DEADLINE,REMOTE_CONTROLLER_MAX_DEADLINE) / 660.0f * GIMBAL_DIRECT_FOLD_UP, GIMBAL_DIRECT_FOLD_DOWN, GIMBAL_DIRECT_FOLD_UP);
+
+		// 进入 test 模式时，目标角锁到当前编码器角（增量控制，避免跳变）
+    	if (gimbal_direct.last_mode != GIMBAL_MOTOR_TEST)
+    	{
+       		gimbal_direct.reference.yaw = gimbal_direct.yaw.fdb.pos;
+        	LQR_clear(&gimbal_lqr_yaw);
+    	}
+
+    	// 遥控器 ch[0] 增量控制大yaw目标角（编码器闭环）
+    	gimbal_direct.reference.yaw = loop_fp32_constrain(
+       			gimbal_direct.reference.yaw - fp32_deadline(gimbal_direct.rc->rc.ch[0],REMOTE_CONTROLLER_MIN_DEADLINE,REMOTE_CONTROLLER_MAX_DEADLINE) / 80000.0f, -M_PI, M_PI);
 	}
 	else
 	{
@@ -601,24 +608,24 @@ void GimbalConsole(void)
 	else if(gimbal_direct.mode == GIMBAL_MOTOR_TEST)
 	{
 		// 调试模式：根据想要单独调试的电机解除注释，记得把不用的的电机力矩和电流都发0
-        gimbal_direct.yaw.set.tor = 0;
+        // gimbal_direct.yaw.set.tor = 0.5f;
         gimbal_direct.pitch.set.tor = 0;
         gimbal_direct.fold.set.tor = 0;
-		// gimbal_direct.small_yaw.set.curr = 0;
+		gimbal_direct.small_yaw.set.curr = 0;
 
         // 系统辨识：开环正弦电压激励
         // GenerateSinWave(幅值, 偏置, 周期s)，周期 = 1/频率
         // gimbal_direct.small_yaw.set.curr = GenerateSinWave(15000.0f, 0.0f, 1.0f);
 
 		// 调双环的时候解除注释
-		small_yaw_angle_cnt++;
-		if (small_yaw_angle_cnt >= GIMBAL_SMALL_YAW_ANGLE_PERIOD_MS)
-		{
-			small_yaw_angle_cnt = 0;
-			fp32 small_yaw_ref = gimbal_direct.small_yaw.fdb.pos + loop_fp32_constrain(gimbal_direct.reference.small_yaw - gimbal_direct.small_yaw.fdb.pos, -M_PI, M_PI);
-			gimbal_direct.small_yaw.set.vel = PID_calc(&gimbal_small_yaw_pid.small_yaw_angle, gimbal_direct.small_yaw.fdb.pos, small_yaw_ref);
-		}
-		gimbal_direct.small_yaw.set.curr = gimbal_direct.small_yaw.direction * PID_calc(&gimbal_small_yaw_pid.small_yaw_velocity, gimbal_direct.small_yaw.fdb.vel, gimbal_direct.small_yaw.set.vel);
+		// small_yaw_angle_cnt++;
+		// if (small_yaw_angle_cnt >= GIMBAL_SMALL_YAW_ANGLE_PERIOD_MS)
+		// {
+		// 	small_yaw_angle_cnt = 0;
+		// 	fp32 small_yaw_ref = gimbal_direct.small_yaw.fdb.pos + loop_fp32_constrain(gimbal_direct.reference.small_yaw - gimbal_direct.small_yaw.fdb.pos, -M_PI, M_PI);
+		// 	gimbal_direct.small_yaw.set.vel = PID_calc(&gimbal_small_yaw_pid.small_yaw_angle, gimbal_direct.small_yaw.fdb.pos, small_yaw_ref);
+		// }
+		// gimbal_direct.small_yaw.set.curr = gimbal_direct.small_yaw.direction * PID_calc(&gimbal_small_yaw_pid.small_yaw_velocity, gimbal_direct.small_yaw.fdb.vel, gimbal_direct.small_yaw.set.vel);
 
 		// 内环(速度环)单独调参：摇杆直接给速度指令，跳过角度环
         // gimbal_direct.small_yaw.set.vel = loop_fp32_constrain(
@@ -634,6 +641,8 @@ void GimbalConsole(void)
 		// fold LQR 摇杆控角度（想调 fold 就取消下面这行注释）
 		// gimbal_direct.fold.set.tor = LQR_calc(&gimbal_lqr_fold, gimbal_direct.reference.fold - gimbal_direct.fold.fdb.pos, gimbal_direct.fold.fdb.vel);
 		// gimbal_direct.fold.set.tor = 0.3; //以恒定力矩转动，用来做系统辨识
+		 gimbal_direct.yaw.set.tor = gimbal_direct.yaw.direction * LQR_calc(&gimbal_lqr_yaw,loop_fp32_constrain(gimbal_direct.reference.yaw - gimbal_direct.yaw.fdb.pos, -M_PI, M_PI),gimbal_direct.yaw.direction * gimbal_direct.yaw.fdb.vel);
+
 	}
 	//VOFA调试
 	//  JustFloat(gimbal_direct.yaw.set.tor,gimbal_direct.yaw.fdb.tor,gimbal_direct.yaw.fdb.pos,gimbal_direct.yaw.fdb.vel);
@@ -661,7 +670,8 @@ void GimbalSendCmd(void)
 		if (motor_enabled)
 		{
 			//yaw/pitch 直接失能
-			DmDisable(&gimbal_direct.yaw);
+			GaoQingStop(&gimbal_direct.yaw);
+			// DmDisable(&gimbal_direct.yaw);
 			DmDisable(&gimbal_direct.pitch);
 			DmDisable(&gimbal_direct.fold);
 			motor_enabled = false;
@@ -680,7 +690,8 @@ void GimbalSendCmd(void)
 			DmEnable(&gimbal_direct.fold);
 			motor_enabled = true;
 		}
-		DmMitCtrlTorque(&gimbal_direct.yaw);
+		// DmMitCtrlTorque(&gimbal_direct.yaw);
+		GaoQingMitCtrlTorque(&gimbal_direct.yaw);
 		DmMitCtrlTorque(&gimbal_direct.pitch);
 		DmMitCtrlTorque(&gimbal_direct.fold);
 	}

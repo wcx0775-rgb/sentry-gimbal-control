@@ -46,23 +46,17 @@ static void GaoQingSendExt(hcan_t * hcan, uint32_t ext_id, const uint8_t * data,
 void GaoQingMitCtrlTorque(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    float tor_raw = motor->set.tor / GAOQING_MOTOR_K * 100.0f;  // 力矩修正
+    float tor = motor->set.tor * 100.0f;   // N·m -> 0.01 N·m（无 k 系数）
     int16_t tqe_int;
-    if(tor_raw > 32767.0f) {
-        tqe_int = 32767;
-    } else if(tor_raw < -32768.0f) {
-        tqe_int = -32768;
-    } else {
-        tqe_int = (int16_t)tor_raw;
-    }
+    if (tor > 32767.0f)       tqe_int = 32767;
+    else if (tor < -32768.0f) tqe_int = -32768;
+    else                      tqe_int = (int16_t)tor;
 
     uint8_t data[4];
-    data[0] = 0x05;
-    data[1] = 0x13;
+    data[0] = 0x1B;                          // 力矩模式码
+    data[1] = 0x0E;                          // 查询码(状态)
     data[2] = (uint8_t)(tqe_int & 0xFF);
     data[3] = (uint8_t)((tqe_int >> 8) & 0xFF);
 
@@ -75,12 +69,9 @@ void GaoQingMitCtrlTorque(Motor_s * motor)
 void GaoQingStop(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
-
-    uint8_t data[3] = {0x01, 0x00, 0x00};
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 3);
+    if (hcan == NULL) return;
+    uint8_t data[2] = {0x01, 0x0E};
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 2);
 }
 
 /**
@@ -89,33 +80,31 @@ void GaoQingStop(Motor_s * motor)
 void GaoQingBrake(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
-
-    uint8_t data[3] = {0x01, 0x00, 0x0F};
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 3);
+    if (hcan == NULL) return;
+    uint8_t data[2] = {0x18, 0x0E};
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 2);
 }
 
 /**
  * @brief 开启高擎电机周期返回状态（上电/初始化时调用一次）
  * @param t_ms 返回周期(ms)，0 为关闭。控制环 1kHz 建议 1~2ms
  */
-void GaoQingSetTimedReturnStatus(Motor_s * motor, int16_t t_ms)
+void GaoQingSetTimedReturnStatus(Motor_s * motor, int16_t t_us)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    uint8_t data[5];
-    data[0] = 0x05;
-    data[1] = 0xB4;
-    data[2] = 0x02;
-    data[3] = (uint8_t)(t_ms & 0xFF);
-    data[4] = (uint8_t)((t_ms >> 8) & 0xFF);
+    uint8_t data[8];
+    data[0] = 0x03;
+    data[1] = 0x00;
+    data[2] = 0x05;                          // 周期返回命令
+    data[3] = 0x0E;                          // 返回查询码(0x0E状态)
+    data[4] = (uint8_t)(t_us & 0xFF);        // 微秒，小端
+    data[5] = (uint8_t)((t_us >> 8) & 0xFF);
+    data[6] = (uint8_t)((t_us >> 16) & 0xFF);
+    data[7] = (uint8_t)((t_us >> 24) & 0xFF);
 
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 5);
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 8);
 }
 
 /**
@@ -124,22 +113,19 @@ void GaoQingSetTimedReturnStatus(Motor_s * motor, int16_t t_ms)
 void GaoQingCurCtrl(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    int16_t curr_int = (int16_t)(motor->set.curr * 10.0f);  // 电流单位 A 转换为整数
+    int16_t cur_int = (int16_t)(motor->set.curr * 10.0f);  // A -> 0.1A（单位需确认，见下）
 
-    uint8_t data[7];
-    data[0] = 0x01;
-    data[1] = 0x00;
-    data[2] = 0x09;
-    data[3] = 0x05;
-    data[4] = 0x1C;
-    data[5] = (uint8_t)(curr_int & 0xFF);
-    data[6] = (uint8_t)((curr_int >> 8) & 0xFF);
+    uint8_t data[6];
+    data[0] = 0x1A;                          // 电流模式码
+    data[1] = 0x0E;                          // 查询码
+    data[2] = 0x00;                          // D轴电流固定为 0
+    data[3] = 0x00;
+    data[4] = (uint8_t)(cur_int & 0xFF);     // Q轴电流，小端
+    data[5] = (uint8_t)((cur_int >> 8) & 0xFF);
 
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 7);
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 6);
 }
 
 /**
@@ -148,22 +134,19 @@ void GaoQingCurCtrl(Motor_s * motor)
 void GaoQingVoltCtrl(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    int16_t volt_int = (int16_t)(motor->set.volt * 10.0f);  // 电压单位 V 转换为整数
+    int16_t vol_int = (int16_t)(motor->set.volt * 10.0f);  // V -> 0.1V（单位需确认）
 
-    uint8_t data[7];
-    data[0] = 0x01;
-    data[1] = 0x00;
-    data[2] = 0x08;
-    data[3] = 0x05;
-    data[4] = 0x1B;
-    data[5] = (uint8_t)(volt_int & 0xFF);
-    data[6] = (uint8_t)((volt_int >> 8) & 0xFF);
+    uint8_t data[6];
+    data[0] = 0x19;                          // 电压模式码
+    data[1] = 0x0E;                          // 查询码
+    data[2] = 0x00;                          // D轴电压固定为 0
+    data[3] = 0x00;
+    data[4] = (uint8_t)(vol_int & 0xFF);     // Q轴电压，小端
+    data[5] = (uint8_t)((vol_int >> 8) & 0xFF);
 
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 7);
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 6);
 }
 
 /**
@@ -172,24 +155,17 @@ void GaoQingVoltCtrl(Motor_s * motor)
 void GaoQingPosCtrl(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    int16_t pos_int = (int16_t)(motor->set.pos / 6.2831853f * 10000.0f);  // 位置单位 rad 转换为整数
-    int16_t tqe_int = (int16_t)(motor->set.tor / GAOQING_MOTOR_K * 100.0f);  // 力矩单位 N·m 转换为整数
+    int16_t pos_int = (int16_t)(motor->set.pos / 6.2831853f * 10000.0f);  // rad -> 圈 -> 0.0001圈
 
-    uint8_t data[8];
-    data[0] = 0x07;
-    data[1] = 0x07;
+    uint8_t data[4];
+    data[0] = 0x1D;                          // 位置模式码
+    data[1] = 0x0E;                          // 查询码
     data[2] = (uint8_t)(pos_int & 0xFF);
     data[3] = (uint8_t)((pos_int >> 8) & 0xFF);
-    data[4] = 0x00;
-    data[5] = 0x00;
-    data[6] = (uint8_t)(tqe_int & 0xFF);
-    data[7] = (uint8_t)((tqe_int >> 8) & 0xFF);
 
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 8);
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 4);
 }
 
 /**
@@ -198,24 +174,17 @@ void GaoQingPosCtrl(Motor_s * motor)
 void GaoQingVelCtrl(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }   
+    if (hcan == NULL) return;
 
-    int16_t vel_int = (int16_t)(motor->set.vel / 6.2831853f * 4000.0f);  // 速度单位 rad/s 转换为整数
-    int16_t tqe_int = (int16_t)(motor->set.tor / GAOQING_MOTOR_K * 100.0f);  // 力矩单位 N·m 转换为整数
+    int16_t vel_int = (int16_t)(motor->set.vel / 6.2831853f * 4000.0f);  // rad/s -> 圈/s -> 0.00025圈/s
 
-    uint8_t data[8];
-    data[0] = 0x07;
-    data[1] = 0x07;
-    data[2] = 0x00;
-    data[3] = 0x80;
-    data[4] = (uint8_t)(vel_int & 0xFF);
-    data[5] = (uint8_t)((vel_int >> 8) & 0xFF);
-    data[6] = (uint8_t)(tqe_int & 0xFF);
-    data[7] = (uint8_t)((tqe_int >> 8) & 0xFF);
+    uint8_t data[4];
+    data[0] = 0x1C;                          // 速度模式码
+    data[1] = 0x0E;                          // 查询码
+    data[2] = (uint8_t)(vel_int & 0xFF);
+    data[3] = (uint8_t)((vel_int >> 8) & 0xFF);
 
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 8);
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 4);
 }
 
 /**
@@ -225,21 +194,8 @@ void GaoQingVelCtrl(Motor_s * motor)
 void GaoQingRezeroPos(Motor_s * motor)
 {
     hcan_t * hcan = GaoQingGetHcanPoint(motor);
-    if (hcan == NULL) {
-        return;  // 如果不是高擎电机，直接返回
-    }
+    if (hcan == NULL) return;
 
-    // 先把电机停下（零点必须在停止状态设置才有效）
-    uint8_t stop[3] = {0x01, 0x00, 0x00};
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, stop, 3);
-    HAL_Delay(100);
-
-    // 设置当前位置为零点（0x40 写寄存器）
-    uint8_t zero[7] = {0x40, 0x01, 0x04, 0x64, 0x20, 0x63, 0x0A};
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, zero, 7);
-    HAL_Delay(1000);   // 例程建议延时 1s
-
-    // 保存到 flash（否则断电丢失）
-    uint8_t save[5] = {0x05, 0xB3, 0x02, 0x00, 0x00};
-    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, save, 5);
+    uint8_t data[3] = {0x03, 0x03, 0x03};   // 系统命令-重设零位
+    GaoQingSendExt(hcan, GAOQING_CTRL_ID_BASE | motor->id, data, 3);
 }

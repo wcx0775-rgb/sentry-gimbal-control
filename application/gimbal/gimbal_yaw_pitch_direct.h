@@ -40,6 +40,7 @@
 #include "usb_task.h"
 #include "LQR.h"
 #include "signal_generator.h"
+#include "CAN_cmd_gaoqing.h"
 
 
 #define GIMBAL_SMALL_YAW_ANGLE_PERIOD_MS (2)   // 角度环周期，单位 ms（1ms 的整数倍）
@@ -49,9 +50,9 @@
 // 4310(大yaw/pitch/折叠) 用 LQR 力矩；6020(小yaw) 永远走双环 PID 电压
 
 /* LQR 增益：MATLAB dlqr 输出后填入（占位值！） */
-#define K1_LQR_YAW    (-20.819606f)  /* TODO */
-#define K2_LQR_YAW    (1.129067f)   /* TODO */
-#define KI_LQR_YAW    (-0.208112f)   /* TODO */
+#define K1_LQR_YAW    (-6.988619f)  /* TODO */
+#define K2_LQR_YAW    (0.278297f)   /* TODO */
+#define KI_LQR_YAW    (-0.069858f)   /* TODO */
 
 #define K1_LQR_PITCH  (-6.988619f)  /* TODO */
 #define K2_LQR_PITCH  (0.278297f)   /* TODO */
@@ -62,11 +63,11 @@
 #define KI_LQR_FOLD   (-0.10463f)   /* TODO */
 
 /* 输出软保护（电机在上位机限幅为主，这里设成一致或略大） */
-#define MAX_OUT_LQR_YAW   (3.0f)
+#define MAX_OUT_LQR_YAW   (6.0f)
 #define MAX_OUT_LQR_PITCH (3.0f)
 #define MAX_OUT_LQR_FOLD  (3.0f)
 /* 积分限幅：建议 0.3~1.0 * (max_out/ki) */
-#define MAX_IOUT_LQR_YAW   (1.0f)  /* TODO */
+#define MAX_IOUT_LQR_YAW   (2.0f)  /* TODO */
 #define MAX_IOUT_LQR_PITCH (1.0f)  /* TODO */
 #define MAX_IOUT_LQR_FOLD  (1.0f)  /* TODO */
 
